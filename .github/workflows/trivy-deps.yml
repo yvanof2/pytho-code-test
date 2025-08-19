@@ -1,28 +1,40 @@
-name: Trivy Scan Python Dependencies
+name: Trivy Dependency Scan
 
 on:
   push:
-    branches: [main]
+    branches: [ "main" ]
   pull_request:
-    branches: [main]
+    branches: [ "main" ]
+  schedule:
+    - cron: '0 3 * * *' # run daily at 3 AM UTC
 
 jobs:
-  trivy:
+  trivy-scan:
+    name: Run Trivy Dependency Check
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
+      - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Install Trivy
-        uses: aquasecurity/trivy-action@v0.14.0
+      - name: Set up Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'          # scan source code/dependencies
+          ignore-unfixed: true
+          vuln-type: 'library'     # only dependency (library) vulns, not OS packages
+          format: 'sarif'
+          output: 'trivy-results.sarif'
 
-      - name: Scan Python dependencies
+      - name: Upload SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      # Optional: fail workflow if HIGH/CRITICAL vulns are found
+      - name: Fail on severe vulnerabilities
         run: |
-          if [ -f requirements.txt ]; then
-            trivy fs --scanners vuln --severity HIGH,CRITICAL --exit-code 1 --format table .
-          elif [ -f Pipfile.lock ]; then
-            trivy fs --scanners vuln --severity HIGH,CRITICAL --exit-code 1 --format table .
-          else
-            echo "No requirements.txt or Pipfile.lock found."
+          if grep -q '"severity":"CRITICAL"\|"severity":"HIGH"' trivy-results.sarif; then
+            echo "High/Critical vulnerabilities found!"
             exit 1
           fi

@@ -36,6 +36,12 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: 'trivy-results.sarif'
+          - name: Upload SARIF results
+  if: github.event_name == 'push'
+  uses: github/codeql-action/upload-sarif@v3
+  with:
+    sarif_file: 'trivy-results.sarif'
+  continue-on-error: true
 
       # On PRs, just store results as artifact instead of uploading
       - name: Upload scan results as artifact (for PR visibility)

@@ -1,0 +1,44 @@
+# requirements-vulnerable.txt
+# WARNING: This file intentionally pins outdated, known-vulnerable or EOL packages
+# for training/testing only. Do NOT use in production.
+
+# Web frameworks and templating (old, vulnerable/EOL)
+Flask==0.12
+Werkzeug==0.14.1
+Jinja2==2.10
+MarkupSafe==1.1.0
+
+# Django (EOL series with historical vulns)
+Django==1.11.15
+
+# Request stack (older versions with known issues)
+requests==2.18.0
+urllib3==1.24.1
+chardet==3.0.2
+idna==2.6
+certifi==2017.4.17
+
+# YAML parsing (unsafe load issues in older versions)
+PyYAML==3.13
+
+# Imaging and XML libs (older with multiple CVEs historically)
+Pillow==6.2.0
+lxml==4.3.0
+
+# Crypto/SSH libs (older, numerous CVEs over time)
+cryptography==2.1.4
+paramiko==2.4.1
+
+# Async/network framework (older)
+Twisted==19.2.0
+
+# Data/ORM (older minor releases with bugs/CVEs over time)
+numpy==1.16.0
+pandas==0.24.0
+SQLAlchemy==1.2.0
+
+# HTML sanitization (older versions with escaping/sanitization issues)
+bleach==2.1.3
+
+# Database driver (older)
+mysqlclient==1.3.12

@@ -1,0 +1,28 @@
+name: Trivy Scan Python Dependencies
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  trivy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Trivy
+        uses: aquasecurity/trivy-action@v0.16.0
+
+      - name: Scan Python dependencies
+        run: |
+          if [ -f requirements.txt ]; then
+            trivy fs --scanners vuln --severity HIGH,CRITICAL --exit-code 1 --format table .
+          elif [ -f Pipfile.lock ]; then
+            trivy fs --scanners vuln --severity HIGH,CRITICAL --exit-code 1 --format table .
+          else
+            echo "No requirements.txt or Pipfile.lock found."
+            exit 1
+          fi

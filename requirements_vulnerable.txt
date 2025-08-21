@@ -1,0 +1,7 @@
+# requirements.txt (intentionally vulnerable versions)
+
+Flask==0.5            # Old Flask version (CVE-2018-1000656 - DoS vulnerability)
+requests==2.19.0      # Vulnerable to CVE-2018-18074 (redirect+authorization header leak)
+Django==1.11.1        # Old Django (multiple CVEs)
+lxml==4.2.3           # XML external entity (XXE) related issues
+PyYAML==3.10          # Unsafe load() allows code execution (CVE-2017-18342)

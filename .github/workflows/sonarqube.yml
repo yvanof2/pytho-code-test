@@ -1,11 +1,14 @@
 name: SonarQube Test Scan
 
 on:
-  workflow_dispatch:   # lets you trigger manually from GitHub Actions tab
-  push:                # runs on every push/commit
+  workflow_dispatch:   # manual trigger from GitHub Actions tab
+  push:                # run on every commit push
     branches:
       - main
-      - '**'           # include all branches (optional, remove if you only want main)
+      - '**'           # include all branches (remove if you only want main)
+  pull_request:        # run on pull requests
+    branches:
+      - main
 
 jobs:
   sonar:
@@ -39,8 +42,9 @@ jobs:
           EOF
 
       - name: Run SonarScanner
-        run: sonar-scanner \
-          -Dsonar.projectKey=sast_scan_test \
-          -Dsonar.sources=src \
-          -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
-          -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+        run: |
+          sonar-scanner \
+            -Dsonar.projectKey=sast_scan_test \
+            -Dsonar.sources=src \
+            -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
+            -Dsonar.login=${{ secrets.SONAR_TOKEN }}

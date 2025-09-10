@@ -11,9 +11,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # ----------------------------
+      # Checkout code
+      # ----------------------------
       - name: Checkout code
         uses: actions/checkout@v3
 
+      # ----------------------------
+      # Set up Python
+      # ----------------------------
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -37,9 +43,9 @@ jobs:
             -Dsonar.login=${{ secrets.SONAR_TOKEN }}
 
       # ----------------------------
-      # Prepare EC2
+      # Prepare EC2 target directory
       # ----------------------------
-      - name: Prepare EC2 target directory
+      - name: Prepare EC2 directory
         uses: appleboy/ssh-action@v0.1.6
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -47,4 +53,43 @@ jobs:
           key: ${{ secrets.EC2_KEY }}
           port: 22
           script: |
-            m
+            mkdir -p /tmp/python-demo
+            chmod 755 /tmp/python-demo
+
+      # ----------------------------
+      # Create tarball and verify
+      # ----------------------------
+      - name: Archive project
+        run: |
+          tar -zcf /tmp/python-demo.tar.gz .
+          echo "Checking tarball existence..."
+          if [ ! -f /tmp/python-demo.tar.gz ]; then
+            echo "❌ Tarball not found! Failing workflow."
+            exit 1
+          fi
+          echo "✅ Tarball exists:"
+          ls -lh /tmp/python-demo.tar.gz
+
+      # ----------------------------
+      # Upload tarball to EC2
+      # ----------------------------
+      - name: Upload archive to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_KEY }}
+          port: 22
+          source: /tmp/python-demo.tar.gz
+          target: /tmp/python-demo/
+          overwrite: true
+          debug: true
+
+      # ----------------------------
+      # Deploy app on EC2
+      # ----------------------------
+      - name: Deploy app on EC2
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          usernam

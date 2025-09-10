@@ -12,7 +12,7 @@ steps:
       - git checkout ${DRONE_BRANCH}
 
   # ----------------------------
-  # Install Python (for Sonar)
+  # Setup Python (for Sonar & packaging)
   # ----------------------------
   - name: Setup Python
     image: python:3.11
@@ -23,11 +23,11 @@ steps:
   # ----------------------------
   # SonarQube Scan
   # ----------------------------
-  - name: Sonar Scanner
+  - name: SonarQube Scan
     image: openjdk:17
     commands:
       - curl -sSLo sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
-      - unzip sonar-scanner.zip -d /tmp
+      - unzip -q sonar-scanner.zip -d /tmp
       - export PATH="/tmp/sonar-scanner-5.0.1.3006-linux/bin:$PATH"
       - sonar-scanner \
           -Dsonar.projectKey=sast_scan_test \
@@ -36,12 +36,12 @@ steps:
           -Dsonar.login=${SONAR_TOKEN}
 
   # ----------------------------
-  # Create tarball from repo
+  # Archive project
   # ----------------------------
-  - name: Archive project
+  - name: Package App
     image: alpine:latest
     commands:
-      - echo "Creating tarball of app folder and requirements.txt..."
+      - echo "Packaging app folder + requirements.txt..."
       - tar -zcf /tmp/python-demo.tar.gz -C /drone/src/python-code-test app requirements.txt
       - ls -lh /tmp/python-demo.tar.gz
 
@@ -53,7 +53,7 @@ steps:
     settings:
       host: ${EC2_HOST}
       username: ${EC2_USER}
-      key: ${EC2_KEY} # private key stored as secret
+      key: ${EC2_KEY}   # stored in Drone secrets
       port: 22
       source: /tmp/python-demo.tar.gz
       target: /tmp/python-demo/
@@ -73,12 +73,12 @@ steps:
       script:
         - mkdir -p /tmp/python-demo
         - cd /tmp/python-demo
-        - tar -xzf python-demo.tar.gz || echo "⚠ Warning: extraction issues"
+        - tar -xzf python-demo.tar.gz
         - ls -l
-        - sudo yum update -y || echo "⚠ Warning: yum update failed"
-        - sudo yum install -y python3 python3-pip || echo "⚠ Warning: python install failed"
-        - pip3 install -r requirements.txt || echo "⚠ Warning: some Python packages failed"
+        - sudo yum -y update || echo "⚠ Skipped yum update"
+        - sudo yum install -y python3 python3-pip || echo "⚠ Python install failed"
+        - pip3 install -r requirements.txt || echo "⚠ Package install issues"
         - cd app
         - nohup python3 app.py > app.log 2>&1 &
-        - echo "App started. Checking process..."
+        - echo "App started. Processes:"
         - ps aux | grep app.py | grep -v grep

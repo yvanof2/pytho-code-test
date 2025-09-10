@@ -57,12 +57,12 @@ jobs:
             chmod 755 /tmp/python-demo
 
       # ----------------------------
-      # Archive project on runner
+      # Archive project safely
       # ----------------------------
       - name: Archive project
         run: |
           TAR_PATH="$GITHUB_WORKSPACE/python-demo.tar.gz"
-          tar -zcf "$TAR_PATH" .
+          tar --exclude='.git' --warning=no-file-changed -zcf "$TAR_PATH" .
           echo "Tarball created at $TAR_PATH"
           ls -lh "$TAR_PATH"
           if [ ! -f "$TAR_PATH" ]; then

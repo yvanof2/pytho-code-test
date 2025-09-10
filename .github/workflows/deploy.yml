@@ -1,121 +1,84 @@
-name: Sonar Scan + Deploy to EC2
+kind: pipeline
+name: sonar-deploy-ec2
 
-on:
-  workflow_dispatch:
-  push:
-    branches:
-      - main
+steps:
+  # ----------------------------
+  # Checkout repository
+  # ----------------------------
+  - name: Checkout
+    image: alpine/git
+    commands:
+      - git clone ${DRONE_REPO_LINK} .
+      - git checkout ${DRONE_BRANCH}
 
-jobs:
-  sonar-and-deploy:
-    runs-on: ubuntu-latest
+  # ----------------------------
+  # Install Python (for Sonar)
+  # ----------------------------
+  - name: Setup Python
+    image: python:3.11
+    commands:
+      - python --version
+      - pip install --upgrade pip
 
-    steps:
-      # ----------------------------
-      # Checkout code
-      # ----------------------------
-      - name: Checkout code
-        uses: actions/checkout@v3
+  # ----------------------------
+  # SonarQube Scan
+  # ----------------------------
+  - name: Sonar Scanner
+    image: openjdk:17
+    commands:
+      - curl -sSLo sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
+      - unzip sonar-scanner.zip -d /tmp
+      - export PATH="/tmp/sonar-scanner-5.0.1.3006-linux/bin:$PATH"
+      - sonar-scanner \
+          -Dsonar.projectKey=sast_scan_test \
+          -Dsonar.sources=app \
+          -Dsonar.host.url=${SONAR_HOST_URL} \
+          -Dsonar.login=${SONAR_TOKEN}
 
-      # ----------------------------
-      # Set up Python
-      # ----------------------------
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
+  # ----------------------------
+  # Create tarball from repo
+  # ----------------------------
+  - name: Archive project
+    image: alpine:latest
+    commands:
+      - echo "Creating tarball of app folder and requirements.txt..."
+      - tar -zcf /tmp/python-demo.tar.gz -C /drone/src/python-code-test app requirements.txt
+      - ls -lh /tmp/python-demo.tar.gz
 
-      # ----------------------------
-      # SonarQube Scan
-      # ----------------------------
-      - name: Install SonarScanner
-        run: |
-          curl -sSLo sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
-          unzip sonar-scanner.zip -d $HOME
-          echo "$HOME/sonar-scanner-5.0.1.3006-linux/bin" >> $GITHUB_PATH
+  # ----------------------------
+  # Upload tarball to EC2
+  # ----------------------------
+  - name: Upload to EC2
+    image: appleboy/drone-scp
+    settings:
+      host: ${EC2_HOST}
+      username: ${EC2_USER}
+      key: ${EC2_KEY} # private key stored as secret
+      port: 22
+      source: /tmp/python-demo.tar.gz
+      target: /tmp/python-demo/
+      debug: true
+      strip_prefix: true
 
-      - name: Run SonarScanner
-        run: |
-          sonar-scanner \
-            -Dsonar.projectKey=sast_scan_test \
-            -Dsonar.sources=. \
-            -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
-            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
-
-      # ----------------------------
-      # Prepare EC2 target directory
-      # ----------------------------
-      - name: Prepare EC2 directory
-        uses: appleboy/ssh-action@v0.1.6
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_KEY }}
-          port: 22
-          script: |
-            mkdir -p /tmp/python-demo
-            chmod 755 /tmp/python-demo
-
-      # ----------------------------
-      # Archive project safely
-      # ----------------------------
-      - name: Archive project
-        run: |
-          set +e  # ignore minor tar warnings
-          TAR_PATH="$GITHUB_WORKSPACE/python-demo.tar.gz"
-          tar --exclude='.git' --warning=no-file-changed -zcf "$TAR_PATH" .
-          set -e
-          echo "Tarball created at $TAR_PATH"
-          ls -lh "$TAR_PATH"
-          if [ ! -f "$TAR_PATH" ]; then
-            echo "❌ Tarball not found! Failing workflow."
-            exit 1
-          fi
-
-      # ----------------------------
-      # Debug: check environment & tarball
-      # ----------------------------
-      - name: Debug runner environment
-        run: |
-          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
-          ls -lh $GITHUB_WORKSPACE
-
-      # ----------------------------
-      # Upload tarball to EC2
-      # ----------------------------
-      - name: Upload tarball to EC2
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_KEY }}
-          port: 22
-          source: ${{ github.workspace }}/python-demo.tar.gz
-          target: /tmp/python-demo/
-          overwrite: true
-          debug: true
-
-      # ----------------------------
-      # Deploy app on EC2
-      # ----------------------------
-      - name: Deploy app on EC2
-        uses: appleboy/ssh-action@v0.1.6
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_KEY }}
-          port: 22
-          script: |
-            cd /tmp/python-demo
-            echo "Extracting tarball..."
-            tar -xzf python-demo.tar.gz || echo "⚠ Warning: tar extraction had minor issues"
-            echo "Installed files:"
-            ls -l
-            echo "Installing Python dependencies..."
-            sudo yum update -y || echo "⚠ Warning: yum update failed"
-            sudo yum install -y python3 python3-pip || echo "⚠ Warning: Python install failed"
-            pip3 install -r requirements.txt || echo "⚠ Warning: Some Python packages failed to install"
-            echo "Starting app in background..."
-            nohup python3 app.py > app.log 2>&1 &
-            echo "App started. Checking process..."
-            ps aux | grep app.py | grep -v grep
+  # ----------------------------
+  # Deploy app on EC2
+  # ----------------------------
+  - name: Deploy on EC2
+    image: appleboy/drone-ssh
+    settings:
+      host: ${EC2_HOST}
+      username: ${EC2_USER}
+      key: ${EC2_KEY}
+      port: 22
+      script:
+        - mkdir -p /tmp/python-demo
+        - cd /tmp/python-demo
+        - tar -xzf python-demo.tar.gz || echo "⚠ Warning: extraction issues"
+        - ls -l
+        - sudo yum update -y || echo "⚠ Warning: yum update failed"
+        - sudo yum install -y python3 python3-pip || echo "⚠ Warning: python install failed"
+        - pip3 install -r requirements.txt || echo "⚠ Warning: some Python packages failed"
+        - cd app
+        - nohup python3 app.py > app.log 2>&1 &
+        - echo "App started. Checking process..."
+        - ps aux | grep app.py | grep -v grep

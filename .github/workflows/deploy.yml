@@ -37,7 +37,7 @@ jobs:
             -Dsonar.login=${{ secrets.SONAR_TOKEN }}
 
       # ----------------------------
-      # Deploy to EC2
+      # Prepare EC2
       # ----------------------------
       - name: Prepare EC2 target directory
         uses: appleboy/ssh-action@v0.1.6
@@ -47,3 +47,4 @@ jobs:
           key: ${{ secrets.EC2_KEY }}
           port: 22
           script: |
+            m

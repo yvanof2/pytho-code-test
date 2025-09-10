@@ -1,3 +1,11 @@
+name: Sonar Scan + Deploy to EC2
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
 jobs:
   sonar-and-deploy:
     runs-on: ubuntu-latest
@@ -23,7 +31,7 @@ jobs:
             -Dsonar.projectKey=sast_scan_test \
             -Dsonar.sources=. \
             -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
-            -Dsonar.login=${{ secrets.SONAR_TOKEN }} || true
+            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
 
       - name: Upload code to EC2
         uses: appleboy/scp-action@v0.1.4

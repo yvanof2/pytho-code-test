@@ -33,7 +33,7 @@ jobs:
       - name: Run SonarScanner
         run: |
           sonar-scanner \
-            -Dsonar.projectKey=sast_scan_test \
+            -Dsonar.projectKey=github.actions.project \
             -Dsonar.sources=. \
             -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
             -Dsonar.login=${{ secrets.SONAR_TOKEN }}

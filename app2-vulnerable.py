@@ -6,7 +6,7 @@ app = Flask(__name__)
 # Hardcoded secret key (vulnerability)
 app.secret_key = "SuperSecretHardcodedKey123!"
 
-# Insecure database connection (vulnerable to SQL Injection)
+## Insecure database connection (vulnerable to SQL Injection)
 def get_user_info(username):
     conn = sqlite3.connect("users.db")
     cursor = conn.cursor()
@@ -19,7 +19,7 @@ def get_user_info(username):
 
 @app.route("/")
 def home():
-    return "Welcome to Bido's vulnerable demo!"
+    return "Welcome to Bido's demo!"
 
 @app.route("/user")
 def user():

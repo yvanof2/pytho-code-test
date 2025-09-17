@@ -85,7 +85,7 @@ jobs:
             python3.11 -m pip install --user -r requirements.txt
 
             # Kill previous app if running
-            pkill -f *.py || echo "No previous process"
+            pkill -f flask || echo "No previous process"
 
             # Start app
             nohup python3.11 *.py > app.log 2>&1 &
